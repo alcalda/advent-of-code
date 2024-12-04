@@ -14,5 +14,5 @@ def solve(filename: str) -> int:
 
 
 
-print(f"Safe Example = {solve('example.txt')}")
-print(f"Safe Reports = {solve('input.txt')}")
+print(f"Example Result = {solve('example.txt')}")
+print(f"Input Result = {solve('input.txt')}")
