@@ -1,7 +1,7 @@
 import itertools
 from collections import defaultdict
 from typing import Protocol
-
+import copy
 
 class AoCProtocol(Protocol):
     def read_content(self, filename: str):
@@ -11,19 +11,6 @@ class AoCProtocol(Protocol):
         ...
 
 class GuardGallivant(AoCProtocol):
-    obstacles: set[tuple[int, int]] = set()
-    positions: set[tuple[int, int]] = set()
-    movements: dict[tuple[int, int], set[tuple[int, int]]] = defaultdict(set)
-    guard: tuple[int, int]
-    maxX: int = 0
-    maxY: int = 0
-    moves: int = 0
-    loop: bool = False
-    start: tuple[int, int] = None
-    cyclic_iterator: itertools.cycle
-    step = None
-
-
     # four turns (x,y)
     steps = (
         (0, -1),  # up
@@ -36,20 +23,29 @@ class GuardGallivant(AoCProtocol):
     def from_file(cls, filename: str):
         return cls(filename)
 
+    def __init__(self, filename: str):
+        self.obstacles: set[tuple[int, int]] = set()
+        self.positions: set[tuple[int, int]] = set()
+        self.movements: dict[tuple[int, int], set[tuple[int, int]]] = defaultdict(set)
+        self.guard: tuple[int, int]
+        self.maxX: int = 0
+        self.maxY: int = 0
+        self.moves: int = 0
+        self.loop: bool = False
+        self.start: tuple[int, int] = None
+        self.cyclic_iterator = itertools.cycle(GuardGallivant.steps)
+        self.step = next(self.cyclic_iterator)
+        self.reset()
+        self.read_content(filename)
+
     def reset(self):
         self.cyclic_iterator = itertools.cycle(GuardGallivant.steps)
         self.step = next(self.cyclic_iterator)
-        self.positions.clear()
         self.movements.clear()
         self.moves = 0
         self.guard = self.start
         self.loop = False
 
-    def __init__(self, filename: str):
-        self.reset()
-        self.obstacles.clear()
-        self.start = None
-        self.read_content(filename)
 
     def read_content(self, filename: str):
         with open(filename, mode="r") as file:
@@ -93,29 +89,31 @@ class GuardGallivant(AoCProtocol):
             self.patrol()
         # remove the position outside the map
         self.positions.remove(self.guard)
-        # print(f"{self.moves=} == {sum(len(v) for v in self.movements.values())}")
         return len(self.positions)
 
     def obstruct(self) -> int:
         result: set[tuple[int, int]] = set()
-        for obstruction in itertools.product(range(self.maxX + 1), range(self.maxY + 1)):
-            if obstruction not in self.obstacles:
-                self.reset()
-                self.obstacles.add(obstruction)
-                while (not self.loop) and self.onmap():
-                    self.patrol()
-                self.obstacles.remove(obstruction)
-                if self.loop:
-                    result.add(obstruction)
+        left: int = 0
+        known = copy.copy(self.positions)
+        for idx, obstruction in enumerate(known):
+            self.reset()
+            self.obstacles.add(obstruction)
+            while (not self.loop) and self.onmap():
+                self.patrol()
+            self.obstacles.remove(obstruction)
+            if self.loop:
+                result.add(obstruction)
+            if not self.onmap():
+                left += 1
+            # print(f"{idx}/{len(known)} with {self.moves=}|{self.loop=}, {self.onmap()=}")
+        print(f"{left=} | {len(result)=}")
         return len(result)
 
 
 guard1 = GuardGallivant.from_file("example.txt")
-# print(f"Example: {guard1.solve()} with {guard1.moves=}")
+print(f"Example: {guard1.solve()} with {guard1.moves=}")
 guard2 = GuardGallivant.from_file("input.txt")
-# print(f"Input: {guard2.solve()} with {guard2.moves=}")
+print(f"Input: {guard2.solve()} with {guard2.moves=}")
 
-guard1 = GuardGallivant.from_file("example.txt")
-# print(f"Example: {guard1.obstruct()}")
-guard2 = GuardGallivant.from_file("input.txt")
+print(f"Example: {guard1.obstruct()}")
 print(f"Input: {guard2.obstruct()}")
