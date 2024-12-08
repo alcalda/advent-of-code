@@ -19,33 +19,36 @@ class GuardGallivant(AoCProtocol):
         (-1, 0),  # left
     )
 
+    Position = tuple[int, int]
+    Direction = tuple[int, int]
+    PositionDirection = tuple[Position, Direction]
+
     @classmethod
     def from_file(cls, filename: str):
         return cls(filename)
 
     def __init__(self, filename: str):
-        self.obstacles: set[tuple[int, int]] = set()
-        self.positions: set[tuple[int, int]] = set()
-        self.movements: dict[tuple[int, int], set[tuple[int, int]]] = defaultdict(set)
-        self.guard: tuple[int, int]
+        self.obstacles: set[GuardGallivant.Position] = set()
+        self.positions: set[GuardGallivant.Position] = set()
+        self.visited: set[GuardGallivant.PositionDirection] = set()
         self.maxX: int = 0
         self.maxY: int = 0
         self.moves: int = 0
         self.loop: bool = False
-        self.start: tuple[int, int] = None
+        self.start: GuardGallivant.Position = None
+        self.guard: GuardGallivant.Position = None
         self.cyclic_iterator = itertools.cycle(GuardGallivant.steps)
-        self.step = next(self.cyclic_iterator)
+        self.step: GuardGallivant.Direction = next(self.cyclic_iterator)
         self.reset()
         self.read_content(filename)
 
     def reset(self):
         self.cyclic_iterator = itertools.cycle(GuardGallivant.steps)
         self.step = next(self.cyclic_iterator)
-        self.movements.clear()
+        self.visited.clear()
         self.moves = 0
         self.guard = self.start
         self.loop = False
-
 
     def read_content(self, filename: str):
         with open(filename, mode="r") as file:
@@ -59,8 +62,15 @@ class GuardGallivant(AoCProtocol):
                     self.start = self.guard
                     self.positions = {self.guard}
 
+    def peek(self) -> Position:
+        return tuple(map(lambda x, y: x + y, self.guard, self.step))
+
+    def move(self) -> tuple[int, int]:
+        self.guard = self.peek()
+        return self.guard
+
     def obstructed(self) -> bool:
-        return tuple(map(lambda x, y: x + y, self.guard, self.step)) in self.obstacles
+        return self.peek() in self.obstacles
 
     def onmap(self) -> bool:
         if not (0 <= self.guard[0] <= self.maxX):
@@ -70,17 +80,16 @@ class GuardGallivant(AoCProtocol):
         else:
             return True
 
-    def move(self) -> tuple[int, int]:
-        self.guard = tuple(map(lambda x, y: x + y, self.guard, self.step))
-        return self.guard
-
     def patrol(self):
         if self.obstructed():
+            posdir = GuardGallivant.PositionDirection((self.peek(), self.step))
+            if posdir in self.visited:
+                self.loop = True
+                return
+            self.visited.add(posdir)
             self.step = next(self.cyclic_iterator)
-        if self.step in self.movements[self.guard]:
-            self.loop = True
-        if not self.loop:
-            self.movements[self.guard].add(self.step)
+        else:
+        # if not self.loop:
             self.positions.add(self.move())
             self.moves += 1
 
